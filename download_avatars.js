@@ -1,7 +1,8 @@
 var request = require('request');
+var fs = require('fs');
 require('dotenv').config();
-
-console.log('Welcome to the GitHub Avatar Downloader!');
+var repoOwner = process.argv[2];
+var repoName = process.argv[3];
 
 function getRepoContributors(repoOwner, repoName, handleRequest) {
   var options = {
@@ -13,21 +14,26 @@ function getRepoContributors(repoOwner, repoName, handleRequest) {
       'User-Agent': 'request',
     }
   };
-// loads the list of contributors via HTTPS for the given repo
-
-  request(options, handleRequest);
+  request(options, function pullURL(err, result, callback){
+    if (err || !repoOwner || !repoName){
+      throw err;
+    }
+    var list = JSON.parse(result.body);
+    list.forEach(function (contributor){
+       downloadAvatar(contributor.avatar_url, contributor.id);
+     });
+  });
 }
 
-getRepoContributors("jquery", "jquery", function(err, result) {
-  if (err){
-    throw err;
-  }
-  var contributors = JSON.parse(result.body);
-  // body is the information that I requested
-  // JASON.parse converts a JSON string into javascript
-  contributors.forEach(function (contributor){
-    console.log(contributor.avatar_url);
-  })
-  // console.log("Errors:", err);
-  // console.log("Result:", contributors);
-});
+
+// getRepoContributors("jquery", "jquery", downloadAvatar);
+getRepoContributors(repoOwner, repoName, downloadAvatar);
+
+function downloadAvatar(url, filePath) {
+  request.get(url)
+         .on('error', function (err) {
+           throw err;
+         })
+         .pipe(fs.createWriteStream('./avatars/' + filePath + ".jpg"));
+         console.log("wrote a file");
+       }
