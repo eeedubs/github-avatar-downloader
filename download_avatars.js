@@ -1,8 +1,8 @@
-var request = require('request');
-var fs = require('fs');
-require('dotenv').config();
-var repoOwner = process.argv[2];
-var repoName = process.argv[3];
+var request = require('request'); // obtains the "request" node package
+var fs = require('fs');           // allows access to the film system commands
+require('dotenv').config();       // configures dotenv
+var repoOwner = process.argv[2];  // parses the third word from the command line (repoOwner)
+var repoName = process.argv[3];   // parses the fourth word from the command line (repoName)
 
 function getRepoContributors(repoOwner, repoName, handleRequest) {
   var options = {
@@ -13,20 +13,18 @@ function getRepoContributors(repoOwner, repoName, handleRequest) {
     headers: {
       'User-Agent': 'request',
     }
-  };
-  request(options, function pullURL(err, result, callback){
+  }; // provides the access information for obtaining the contributor data
+  request(options, function pullURL(err, result, callback){ // same as request(options) and request (function pullURL...)
     if (err || !repoOwner || !repoName){
-      throw err;
+      throw err; // if no repoOwner, repoName, or in case of error, throw back an error message
     }
-    var list = JSON.parse(result.body);
-    list.forEach(function (contributor){
-       downloadAvatar(contributor.avatar_url, contributor.id);
+    var list = JSON.parse(result.body); // converts the text (from object) into var list
+    list.forEach(function (contributor){  // for each contributor from the list
+       downloadAvatar(contributor.avatar_url, contributor.id); // download the avatar to the specified location
      });
   });
 }
 
-
-// getRepoContributors("jquery", "jquery", downloadAvatar);
 getRepoContributors(repoOwner, repoName, downloadAvatar);
 
 function downloadAvatar(url, filePath) {
@@ -35,5 +33,4 @@ function downloadAvatar(url, filePath) {
            throw err;
          })
          .pipe(fs.createWriteStream('./avatars/' + filePath + ".jpg"));
-         console.log("wrote a file");
        }
