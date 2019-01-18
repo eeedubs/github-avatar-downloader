@@ -1,36 +1,83 @@
-var request = require('request'); // obtains the "request" node package
-var fs = require('fs');           // allows access to the film system commands
-require('dotenv').config();       // configures dotenv
-var repoOwner = process.argv[2];  // parses the third word from the command line (repoOwner)
-var repoName = process.argv[3];   // parses the fourth word from the command line (repoName)
+let request = require('request');
+// obtains the "request" node package
+let fs = require('fs');
+// allows access to the film system commands
+let ENV;
 
-function getRepoContributors(repoOwner, repoName, handleRequest) {
-  var options = {
-    url: "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/contributors",
+// Handles error with missing env.js file
+try {
+  ENV = require('./env.js');
+} catch(error){
+  console.log("Failure");
+}
+
+// Handles error with missing github token
+if (ENV.GITHUB_TOKEN){
+  console.log("Github token successfully parsed from env.js");
+} else {
+  console.log("No github token found");
+}
+
+let repoOwner = process.argv[2];
+// parses the third word from the command line (repoOwner)
+let repoName = process.argv[3];
+// parses the fourth word from the command line (repoName)
+
+function getRepoContributors(repositoryOwner, repositoryName, callback) {
+  let options = {
+    // gets the url, the access tokens, and the headers
+    url: "https://api.github.com/repos/" + repositoryOwner + "/" + repositoryName + "/contributors",
     qs: {
-      "access_token": process.env.GITHUB_TOKEN
+      "access_token": ENV.GITHUB_TOKEN
     },
     headers: {
       'User-Agent': 'request',
     }
-  }; // provides the access information for obtaining the contributor data
-  request(options, function pullURL(err, result, callback){ // same as request(options) and request (function pullURL...)
-    if (err || !repoOwner || !repoName){
-      throw err; // if no repoOwner, repoName, or in case of error, throw back an error message
+  }
+
+  function pullURL(error, response){
+    if (response.statusCode !== 200){
+      console.log(`Bad request error ${response.statusCode}: The provided owner/repo does not exist.`);
+    } else if (error){
+      throw "Error: There was an issue with the information provided."; 
+    } else if (!repoOwner || !repoName){
+      // handles error: inadequate number of arguments
+      throw "Error: Missing the name of either the repository owner, the repository name, or both."
+    } else if (process.argv.length > 4){
+      // handles error: excessive number of arguments
+      throw "Error: Cannot process the additional parameters."
+    } else {
+      let list = JSON.parse(response.body);
+      list.forEach(function (contributor){
+        // for each contributor from the list
+        callback(contributor.avatar_url, contributor.id);
+        // download the avatar to the specified location
+      });
     }
-    var list = JSON.parse(result.body); // converts the text (from object) into var list
-    list.forEach(function (contributor){  // for each contributor from the list
-       downloadAvatar(contributor.avatar_url, contributor.id); // download the avatar to the specified location
-     });
-  });
+  }
+  
+  // Actives the pullURL function
+  request(options, pullURL);
+}
+
+function downloadAvatar(url, filePath) {
+  // download the Avatar from the 'url' to the 'filePath'
+  request.get(url)
+  // gets the url from "contributor.avatar_url" 
+    .on('error', function (error) {
+      // Handles error with invalid url
+      throw "There was an error getting the url: " + error;
+    })
+    .pipe(fs.createWriteStream('./avatars/' + filePath + ".jpg"))
+    // save the file to the location
+    .on("finish", function(response){
+      // Log the successful write to the console
+      console.log("Printed to: ./avatars/" + filePath + ".jpg");
+    })
+    .on("error", function(error){
+      //  Handles the error with a missing folder to store images
+      console.log("Problem writing file to local disk: ", error);
+    });
 }
 
 getRepoContributors(repoOwner, repoName, downloadAvatar);
-
-function downloadAvatar(url, filePath) {
-  request.get(url)
-         .on('error', function (err) {
-           throw err;
-         })
-         .pipe(fs.createWriteStream('./avatars/' + filePath + ".jpg"));
-       }
