@@ -1,5 +1,6 @@
 let request = require('request');
 // obtains the "request" node package
+let async = require('async');
 let fs = require('fs');
 // allows access to the film system commands
 let ENV;
@@ -7,7 +8,6 @@ let ENV;
 // Handles error with missing env.js file
 try {
   ENV = require('./env.js');
-  console.log(ENV.GITHUB_TOKEN);
 } catch(error){
   console.log("Failure");
 }
@@ -37,6 +37,7 @@ function getRepoContributors(repositoryOwner, repositoryName, cb) {
   }
 
   function pullURL(error, response){
+    let followersArray = []; 
     if (response.statusCode !== 200){
       console.log(`Bad request error ${response.statusCode}: The provided owner/repo does not exist.`);
     } else if (error){
@@ -49,38 +50,48 @@ function getRepoContributors(repositoryOwner, repositoryName, cb) {
       throw "Error: Cannot process the additional parameters."
     } else {
       let list = JSON.parse(response.body);
-      let starredArray = [];
-      list.forEach(function (contributor){
-        // for each contributor from the list
-        cb(contributor.avatar_url, contributor.id);
-        // download the avatar to the specified location
-      });
-      console.log(starredArray);
+      list.forEach(function(contributor, index){
+        cb(contributor.url, followersArray, list, index)
+      })
     }
   }
-
-  // Actives the pullURL function
   request(options, pullURL);
 }
 
-function downloadAvatar(url, filePath) {
-  // download the Avatar from the 'url' to the 'filePath'
-  request.get(url)
-  // gets the url from "contributor.avatar_url" 
-    .on('error', function (error) {
-      // Handles error with invalid url
-      throw "There was an error getting the url: " + error;
-    })
-    .pipe(fs.createWriteStream('./avatars/' + filePath + ".jpg"))
-    // save the file to the location
-    .on("finish", function(response){
-      // Log the successful write to the console
-      console.log("Printed to: ./avatars/" + filePath + ".jpg");
-    })
-    .on("error", function(error){
-      //  Handles the error with a missing folder to store images
-      console.log("Problem writing file to local disk: ", error);
-    });
+function getJson(url, array, list, index){
+  options = {
+    url,
+    qs: {
+        "access_token": ENV.GITHUB_TOKEN
+    },
+    headers: {
+       'User-Agent': 'request'
+    }
+  }
+  request.get(options, function (error, response, body){
+    if (!error && response.statusCode == 200){
+      let info = JSON.parse(body);
+      array.push(info);
+      if (list.length - 1 == index){
+        array.sort(function(a, b){
+          let keyA = new Number(a.followers)
+          let keyB = new Number(b.followers)
+          if (keyA < keyB) return 1;
+          if (keyA > keyB) return -1;
+          return 0
+        })
+        let newArray = [];
+        array.forEach(function(item){
+          newArray.push(`[ ${item.followers} followers ] ${item.login} / ${item.location}`);
+        })
+        for (let x = 0; x < 5; x++){
+          console.log(newArray[x]);
+        }
+      }
+    } else {
+      throw error;
+    }
+  });
 }
 
-getRepoContributors(repoOwner, repoName, downloadAvatar);
+getRepoContributors(repoOwner, repoName, getJson);

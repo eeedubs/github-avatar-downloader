@@ -17,6 +17,8 @@
   },
   "homepage": "https://github.com/eeedubs/github-avatar-downloader#readme",
   "dependencies": {
+    "async": "^2.6.1",
+    "curl": "^0.1.4",
     "dotenv": "^6.1.0",
     "request": "^2.88.0"
   }
