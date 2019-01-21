@@ -7,7 +7,6 @@ let ENV;
 // Handles error with missing env.js file
 try {
   ENV = require('./env.js');
-  console.log(ENV.GITHUB_TOKEN);
 } catch(error){
   console.log("Failure");
 }
